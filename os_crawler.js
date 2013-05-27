@@ -1,7 +1,7 @@
 /*
- * HTML Export Script
+ * HTML Export Script for OpenScholar
  * Tõnis Tartes
- * Anno.2013 
+ * Anno.2013
  * @type type
  */
 var request = require('request'),
@@ -11,12 +11,12 @@ var request = require('request'),
     fs = require('fs');
 
 //Params
-var domain = 'http://sisu.ut.ee'; //Dont touch this
+var domain = 'http://sisu.ut.ee'; //MC Hammer - Can't touch this
 var subsite = '/ortodontia'; //Change OS SubSite
 var address = domain+subsite;
 var download_dir = 'downloads'+subsite+'/';
 
-
+//Starting...
 request(address, function(error, response, body) {  
     if (error) throw error;
     
@@ -26,16 +26,14 @@ request(address, function(error, response, body) {
     }
     
     if (!error && response.statusCode == 200) {
-        //waterfall
         async.waterfall([
-            function (step) {
-                console.log('esimene käik');
+            function (step) {                
                 var sites_arr = siteMapper(body);
+                console.log('Sitemap done!');
                 step(null, sites_arr);
             },
             function (sites_arr, step) {
-                console.log('teine käik');
-                
+                console.log('Page crawler init..')
                 var count = Object.keys(sites_arr).length;
                 async.eachSeries(Object.keys(sites_arr), function(item, callback) {
                     getPages(item, sites_arr[item], function() {
@@ -43,15 +41,15 @@ request(address, function(error, response, body) {
                     });
                     console.log(count);
                     if (--count == 0) {
+                        console.log('Page crawling done!');
                         step();
                     }
                 }, function(err) {
                     console.log(err);
                 });
-            },
+            },            
             function (step){
-                console.log('kolmas käik');
-                
+                console.log('CSS img processor init...');                
                 var css_arr = [];
                 var files = fs.readdirSync(download_dir);
 
@@ -63,23 +61,57 @@ request(address, function(error, response, body) {
                         callback();
                     }
                 });
-                
+
                 var count = css_arr.length;
+                
                 async.eachSeries(css_arr, function(item, callback) {
-                     cssImgWorker(item, function() {
+                     cssImgWorker(item, null, function() {
                         callback(); 
                         if (--count == 0) {
                             console.log('CSS img processing - done!');
-                            step(null);
+                            step();
                         }
                      }); 
                 }, function(err){
                     console.log(err);
                 });               
             },
+            function(step) {
+                console.log('Flavor mod init');                
+                var $ = cheerio.load(body);
+                var css_flavors = [];
+                var css_flavor_path = '';
+                //CSS Flavor Download - Experimental
+                $('link[type="text/css"]').each(function() {                
+                    var css_link = $(this).attr('href');
+                    var valid_css = css_link.split('http://');   
+                    if (valid_css[1]) {
+                        if (valid_css[1].indexOf('/flavors/') > -1) {                         
+                            var css_flavor = path.basename(css_link).split('?');
+                            css_flavor_path = css_link.split(css_flavor[0]);
+                            css_flavors.push(css_flavor[0]);
+                        }
+                    }
+                });
+                if (!css_flavor_path[0]) {
+                    console.log('No flavor: skipping!');
+                    step();
+                } 
+                var count = css_flavors.length;                
+                async.eachSeries(css_flavors, function(item, callback) {
+                     cssImgWorker(item, css_flavor_path[0], function() {
+                        callback(); 
+                        if (--count == 0) {
+                            console.log('Flavor img processing - done!');
+                            step();
+                        }
+                     }); 
+                }, function(err){
+                    console.log(err);
+                }); 
+            },
             function (step) {
-              console.log('neljas käik');  
-                
+                console.log('CSS link processor init...');  
                 var css_arr = [];
                 var files = fs.readdirSync(download_dir);
 
@@ -95,20 +127,19 @@ request(address, function(error, response, body) {
                 var count = css_arr.length;
                 async.eachSeries(css_arr, function(item, callback) {
                      cssWorker(item, function() {
-                        callback(); 
+                        callback();
                         if (--count == 0) {
-                            console.log('CSS processing - done!');
-                            //step();
+                            console.log('CSS link processing - done!');
+                            step();
                         }
-                     }); 
+                     });
                 }, function(err){
                     console.log(err);
-                });  
-
+                });
             }
         ],
         function(err, results) {
-            console.log('done');
+            console.log('Crawling complete!');
         });
     }   
     
@@ -174,10 +205,10 @@ function pageWorker(title, html, callback) {
             });
         },
         function (next) {
-            var count = $('.node-content img').length;
+            var count = $('#columns #content-column .node-content img').length;
             if (count > 0) {
                 //Images uploaded to content
-                $('.node-content img').each(function() {
+                $('#columns #content-column .node-content img').each(function() {
                     var link = $(this).attr('src');
                     download_file($(this).attr('src'), download_dir+link, function(err) {                   
                         if (--count == 0) {
@@ -191,15 +222,64 @@ function pageWorker(title, html, callback) {
             }
         },
         function (next) {
+            var count = $('#header #header-container img').length;
+            if (count > 0) {
+                //Images uploaded to header
+                $('#header #header-container img').each(function() {
+                    var link = $(this).attr('src');
+                    download_file($(this).attr('src'), download_dir+link, function(err) {                   
+                        if (--count == 0) {
+                            next();
+                        }
+                    });
+                    $(this).attr('src', path.basename(link));
+                });
+            } else {
+                next();
+            }
+        },
+        function (next) {
+            var count = $('#columns .sidebar img').length;
+            if (count > 0) {
+                //Images uploaded to sidebar
+                $('#columns .sidebar img').each(function() {
+                    var link = $(this).attr('src');
+                    download_file($(this).attr('src'), download_dir+link, function(err) {                   
+                        if (--count == 0) {
+                            next();
+                        }
+                    });
+                    $(this).attr('src', path.basename(link));
+                });
+            } else {
+                next();
+            }
+        },
+        function (next) {
+            var count = $('#footer img').length;
+            if (count > 0) {
+                //Images uploaded to footer
+                $('#footer img').each(function() {
+                    var link = $(this).attr('src');
+                    download_file($(this).attr('src'), download_dir+link, function(err) {                   
+                        if (--count == 0) {
+                            next();
+                        }
+                    });
+                    $(this).attr('src', path.basename(link));
+                });
+            } else {
+                next();
+            }
+        },
+        function (next) {
             //Disable prev_next and poweredby login
             $('#prev_next').remove();
             $('#powerby-login').remove();
-            //Write to file
-            //if (!file_exists(download_dir+title+'.html')) {                
-                fs.writeFile(download_dir+title+'.html', $.html(), function(err) {
-                    next();
-                });
-            //}
+            //Write to file      
+            fs.writeFile(download_dir+title+'.html', $.html(), function(err) {
+                next();
+            });
         }
     ],
     function(err, results) {
@@ -214,7 +294,6 @@ function download_file(uri, filename, callback) {
     get_file = path.basename(filename).split('?');
     filename = get_file[0];
 
-    //if (!file_exists(download_dir+filename)) {
     try {
         request.head(uri, function(err, res, body){
             //console.log('content-type:', res.headers['content-type']);
@@ -230,9 +309,7 @@ function download_file(uri, filename, callback) {
         });
     } catch(err) {
         callback(err);
-        console.log(err);
     }
-    //}
 }
 
 //Check if file exists
@@ -260,18 +337,16 @@ function siteMapper(html) {
     return sites;
 }
 
-//CSS Parser
+//CSS Worker, find url instances and replaces with local image paths, which have been
+//previously downloaded by cssImgWorker();
 function cssWorker(file, callback) {
       
     async.waterfall([
         function(next){
             fs.readFile(download_dir+file, 'utf8', function(err, data) {        
-                if (err) {
-                    callback(err);
-                    return;
-                }
+                if (err) { callback(err); return; }
 
-                var matches = data.match(/url\((?!['"])(?!http)(.*?)\)/g);
+                var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
                 if (matches != null) {
                     var count = matches.length;
                     var output = data;
@@ -280,10 +355,9 @@ function cssWorker(file, callback) {
                         async.eachSeries(matches, function(item, nextreplace){
                             var item_url = item.split('url(');
                             item_url = item_url[1].split(')');
-                            //console.log(item_url[0]);
-                            //console.log(path.basename(item_url[0]));
-                            var re = new RegExp(item_url[0], "g");
-                            output = output.replace(re, path.basename(item_url[0]));
+                            var trim_url = item_url[0].replace(/['"]*/g, '');
+                            var re = new RegExp(trim_url, "g");
+                            output = output.replace(re, path.basename(trim_url));
                             nextreplace();
                         });
                         next(null, output);
@@ -304,34 +378,43 @@ function cssWorker(file, callback) {
     ],
     function(err, results){
         callback();
-        console.log('tehtud'); 
     });
 }
 
-function cssImgWorker(file, callback) {
-
+//Work through CSS inner images
+function cssImgWorker(file, flavor_path, callback) {
+    
     fs.readFile(download_dir+file, 'utf8', function(err, data) {       
-        if (err) {
-            callback(err);
-            return;
-        }
+        if (err) { callback(err); return; }
 
-        var matches = data.match(/url\((?!['"])(?!http)(.*?)\)/g);
+        var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
         if (matches != null) {
             var count = matches.length;
-
             if (count > 0) {
                 async.eachSeries(matches, function(item, next){
                     var item_url = item.split('url(');
-                    item_url = item_url[1].split(')');                  
-                    download_file(domain+item_url[0], download_dir+item_url[0], function(err) {
-                        //console.log(count);
-                        if (--count == 0) {
-                            //console.log('Processing - '+file);                                        
-                            callback();
+                    item_url = item_url[1].split(')');
+                    var trim_url = item_url[0].replace(/['"]*/g, '');
+                    if (!flavor_path) {
+                        download_file(domain+trim_url, download_dir+trim_url, function(err) {     
+                            if (--count == 0) {                                    
+                                callback();
+                            }
+                            next();
+                        });  
+                    } else {
+                        var cpath = path.basename(file, '.css');                        
+                        item_url = trim_url.split('../'+cpath+'/');
+                        if (item_url[1] && item_url[1].length > 0) {
+                            trim_url = item_url[1];
                         }
-                        next();
-                    });                
+                        download_file(flavor_path+trim_url, download_dir+trim_url, function(err) {     
+                            if (--count == 0) {                                    
+                                callback();
+                            }
+                            next();
+                        });   
+                    }
                 });
             } else {
                 callback();
