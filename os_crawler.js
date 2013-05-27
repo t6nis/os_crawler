@@ -25,7 +25,7 @@ request(address, function(error, response, body) {
         fs.mkdir(download_dir, '0777');
     }
     
-    if (!error && response.statusCode == 200) {
+    if (!error && response.statusCode === 200) {
         async.waterfall([
             function (step) {                
                 var sites_arr = siteMapper(body);
@@ -33,14 +33,14 @@ request(address, function(error, response, body) {
                 step(null, sites_arr);
             },
             function (sites_arr, step) {
-                console.log('Page crawler init..')
+                console.log('Page crawler init..');
                 var count = Object.keys(sites_arr).length;
                 async.eachSeries(Object.keys(sites_arr), function(item, callback) {
                     getPages(item, sites_arr[item], function() {
                         callback();
                     });
                     console.log(count);
-                    if (--count == 0) {
+                    if (--count === 0) {
                         console.log('Page crawling done!');
                         step();
                     }
@@ -54,7 +54,7 @@ request(address, function(error, response, body) {
                 var files = fs.readdirSync(download_dir);
 
                 async.eachSeries(files, function(item, callback) {
-                    if (path.extname(item) == '.css') {
+                    if (path.extname(item) === '.css') {
                         css_arr.push(item);
                         callback();
                     } else {
@@ -67,7 +67,7 @@ request(address, function(error, response, body) {
                 async.eachSeries(css_arr, function(item, callback) {
                      cssImgWorker(item, null, function() {
                         callback(); 
-                        if (--count == 0) {
+                        if (--count === 0) {
                             console.log('CSS img processing - done!');
                             step();
                         }
@@ -101,7 +101,7 @@ request(address, function(error, response, body) {
                 async.eachSeries(css_flavors, function(item, callback) {
                      cssImgWorker(item, css_flavor_path[0], function() {
                         callback(); 
-                        if (--count == 0) {
+                        if (--count === 0) {
                             console.log('Flavor img processing - done!');
                             step();
                         }
@@ -116,7 +116,7 @@ request(address, function(error, response, body) {
                 var files = fs.readdirSync(download_dir);
 
                 async.eachSeries(files, function(item, callback) {
-                    if (path.extname(item) == '.css') {
+                    if (path.extname(item) === '.css') {
                         css_arr.push(item);
                         callback();
                     } else {
@@ -128,7 +128,7 @@ request(address, function(error, response, body) {
                 async.eachSeries(css_arr, function(item, callback) {
                      cssWorker(item, function() {
                         callback();
-                        if (--count == 0) {
+                        if (--count === 0) {
                             console.log('CSS link processing - done!');
                             step();
                         }
@@ -148,7 +148,7 @@ request(address, function(error, response, body) {
 //Crawl pages
 function getPages(title, href, callback) {    
     request(address+href, function(error, response, body) {          
-        if (!error && response.statusCode == 200) {
+        if (!error && response.statusCode === 200) {
             pageWorker(title, body, callback);            
         }        
     });
@@ -182,7 +182,7 @@ function pageWorker(title, html, callback) {
                 if (valid_css[1]) {
                     count++;
                     download_file($(this).attr('href'), download_dir+css_link, function(err) {
-                        if (--count == 0) {
+                        if (--count === 0) {
                             next();
                         }
                     });
@@ -197,7 +197,7 @@ function pageWorker(title, html, callback) {
                 count++;
                 var js_link = $(this).attr('src');
                 download_file($(this).attr('src'), download_dir+js_link, function(err){
-                    if (--count == 0) {
+                    if (--count === 0) {
                         next();
                     }
                 });
@@ -211,7 +211,7 @@ function pageWorker(title, html, callback) {
                 $('#columns #content-column .node-content img').each(function() {
                     var link = $(this).attr('src');
                     download_file($(this).attr('src'), download_dir+link, function(err) {                   
-                        if (--count == 0) {
+                        if (--count === 0) {
                             next();
                         }
                     });
@@ -228,7 +228,7 @@ function pageWorker(title, html, callback) {
                 $('#header #header-container img').each(function() {
                     var link = $(this).attr('src');
                     download_file($(this).attr('src'), download_dir+link, function(err) {                   
-                        if (--count == 0) {
+                        if (--count === 0) {
                             next();
                         }
                     });
@@ -245,7 +245,7 @@ function pageWorker(title, html, callback) {
                 $('#columns .sidebar img').each(function() {
                     var link = $(this).attr('src');
                     download_file($(this).attr('src'), download_dir+link, function(err) {                   
-                        if (--count == 0) {
+                        if (--count === 0) {
                             next();
                         }
                     });
@@ -262,7 +262,7 @@ function pageWorker(title, html, callback) {
                 $('#footer img').each(function() {
                     var link = $(this).attr('src');
                     download_file($(this).attr('src'), download_dir+link, function(err) {                   
-                        if (--count == 0) {
+                        if (--count === 0) {
                             next();
                         }
                     });
@@ -347,7 +347,7 @@ function cssWorker(file, callback) {
                 if (err) { callback(err); return; }
 
                 var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
-                if (matches != null) {
+                if (matches !== null) {
                     var count = matches.length;
                     var output = data;
 
@@ -388,7 +388,7 @@ function cssImgWorker(file, flavor_path, callback) {
         if (err) { callback(err); return; }
 
         var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
-        if (matches != null) {
+        if (matches !== null) {
             var count = matches.length;
             if (count > 0) {
                 async.eachSeries(matches, function(item, next){
@@ -397,7 +397,7 @@ function cssImgWorker(file, flavor_path, callback) {
                     var trim_url = item_url[0].replace(/['"]*/g, '');
                     if (!flavor_path) {
                         download_file(domain+trim_url, download_dir+trim_url, function(err) {     
-                            if (--count == 0) {                                    
+                            if (--count === 0) {                                    
                                 callback();
                             }
                             next();
@@ -409,7 +409,7 @@ function cssImgWorker(file, flavor_path, callback) {
                             trim_url = item_url[1];
                         }
                         download_file(flavor_path+trim_url, download_dir+trim_url, function(err) {     
-                            if (--count == 0) {                                    
+                            if (--count === 0) {                                    
                                 callback();
                             }
                             next();
