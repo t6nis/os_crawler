@@ -12,7 +12,7 @@ var request = require('request'),
 
 //Params
 var domain = 'http://sisu.ut.ee'; //MC Hammer - Can't touch this
-var subsite = '/ortodontia'; //Change OS SubSite
+var subsite = '/histoloogia'; //Change OS SubSite
 var address = domain+subsite;
 var download_dir = 'downloads'+subsite+'/';
 
