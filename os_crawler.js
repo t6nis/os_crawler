@@ -11,8 +11,8 @@ var request = require('request'),
     fs = require('fs');
 
 //Params
-var domain = 'http://sisu.ut.ee'; //MC Hammer - Can't touch this
-var subsite = '/histoloogia'; //Change OS SubSite
+var domain = 'https://sisu.ut.ee'; //MC Hammer - Can't touch this
+var subsite = '/erasmus'; //Change OS SubSite
 var address = domain+subsite;
 var download_dir = 'downloads'+subsite+'/';
 
@@ -84,7 +84,7 @@ request(address, function(error, response, body) {
                 //CSS Flavor Download - Experimental
                 $('link[type="text/css"]').each(function() {                
                     var css_link = $(this).attr('href');
-                    var valid_css = css_link.split('http://');   
+                    var valid_css = css_link.split('https://');   
                     if (valid_css[1]) {
                         if (valid_css[1].indexOf('/flavors/') > -1) {                         
                             var css_flavor = path.basename(css_link).split('?');
@@ -149,6 +149,7 @@ request(address, function(error, response, body) {
 function getPages(title, href, callback) {    
     request(address+href, function(error, response, body) {          
         if (!error && response.statusCode === 200) {
+            //pageWorker(decodeURI(title), body, callback); //if cyrillic sites uncomment this
             pageWorker(title, body, callback);            
         }        
     });
@@ -167,6 +168,7 @@ function pageWorker(title, html, callback) {
                 if (html_link[2] === 'node') {
                     $(this).attr('href', domain+$(this).attr('href'));
                 } else {
+                    //$(this).attr('href', decodeURI(html_link[2])+'.html'); //if cyrillic sites uncomment this
                     $(this).attr('href', encodeURIComponent(html_link[2])+'.html');
                 }
                 
@@ -178,7 +180,7 @@ function pageWorker(title, html, callback) {
             //CSS Download - Experimental
             $('link[type="text/css"]').each(function() {                
                 var css_link = $(this).attr('href');
-                var valid_css = css_link.split('http://');                 
+                var valid_css = css_link.split('https://');                 
                 if (valid_css[1]) {
                     count++;
                     download_file($(this).attr('href'), download_dir+css_link, function(err) {
@@ -293,7 +295,13 @@ function download_file(uri, filename, callback) {
     var get_file = '';
     get_file = path.basename(filename).split('?');
     filename = get_file[0];
-
+    
+    //02.12.2013 - Check pattern for valid http or https
+    var pattern = /^((http|https):\/\/)/;
+    if (!pattern.test(uri)) {
+        uri = domain+uri;
+    }
+    
     try {
         request.head(uri, function(err, res, body){
             //console.log('content-type:', res.headers['content-type']);
@@ -346,7 +354,7 @@ function cssWorker(file, callback) {
             fs.readFile(download_dir+file, 'utf8', function(err, data) {        
                 if (err) { callback(err); return; }
 
-                var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
+                var matches = data.match(/url\((?!data:image\/svg)((?!https)|(?!http))(.*?)\)/g);
                 if (matches !== null) {
                     var count = matches.length;
                     var output = data;
@@ -387,7 +395,7 @@ function cssImgWorker(file, flavor_path, callback) {
     fs.readFile(download_dir+file, 'utf8', function(err, data) {       
         if (err) { callback(err); return; }
 
-        var matches = data.match(/url\((?!data:image\/svg)(?!http)(.*?)\)/g);
+        var matches = data.match(/url\((?!data:image\/svg)((?!https)|(?!http))(.*?)\)/g);
         if (matches !== null) {
             var count = matches.length;
             if (count > 0) {
@@ -395,6 +403,8 @@ function cssImgWorker(file, flavor_path, callback) {
                     var item_url = item.split('url(');
                     item_url = item_url[1].split(')');
                     var trim_url = item_url[0].replace(/['"]*/g, '');
+                    //02.12.2013 - Need this...
+                    trim_url = trim_url.replace(/((http:\/\/sisu.ut.ee)|(https:\/\/sisu.ut.ee))/g, '');                    
                     if (!flavor_path) {
                         download_file(domain+trim_url, download_dir+trim_url, function(err) {     
                             if (--count === 0) {                                    
